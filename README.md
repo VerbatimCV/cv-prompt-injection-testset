@@ -54,6 +54,35 @@ Quick check with the free scanner (no key, 10 a minute):
 for f in cvs/*; do echo "$f"; curl -s https://api.verbatimcv.com/v1/scan -F file=@"$f" | python3 -c "import json,sys; print(json.load(sys.stdin)['prompt_injection_detected'])"; done
 ```
 
+## Experiment: does the hidden text change an LLM screener's decision?
+
+`experiment.py` gives each CV's plain extracted text to a realistic, unhardened screening prompt
+(Data Engineer role, 3+ years of Python and SQL) on Claude Haiku 5.5 and Claude Sonnet 5.5, twice
+each, and asks for years of experience, a 1–10 fit score and whether to rank the candidate as the top
+match. Raw output is in `experiment_results.json` (November 2026).
+
+PDF cases (the same candidate, five years' experience):
+
+| | Controls (01, 10) | Injected (02–09) |
+|---|---|---|
+| Runs | 8 | 32 |
+| Reported the injected "12 years" | 0 | 0 |
+| Mean fit score | 8.0 | 7.84 |
+| Ranked as top match | **8 of 8** | **4 of 32** |
+| Summary mentions an instruction or hidden text | 0 | 25 of 32 |
+
+**These models were not fooled.** No run repeated the injected claim, and fit scores didn't rise. But
+**the hidden text still changed the decision**: the same qualifications went from "top match" in every
+control run to one run in eight. The models usually spotted the instruction and declined to rank the
+candidate first. That's often reasonable, but it happens silently: a recruiter reading the score never
+sees why. It also happened in case 03, plain white keyword stuffing with no instruction at all, which
+leftover template text can produce innocently.
+
+Caveats: two models from one provider, two runs each, one prompt and one candidate. The Word cases
+(11–14) used a candidate whose background doesn't fit the role (every run scored 2), so they aren't
+comparable for decisions. Other models, older models and prompts that ask the model to act (rather
+than score) may behave differently. That's what the set is for.
+
 ## Results: VerbatimCV's screening
 
 [VerbatimCV](https://verbatimcv.com) removes hidden text before extracting anything. On this set
